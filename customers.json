@@ -7,5 +7,14 @@
     "ClientSecret": "5zj8Q~8arsG1QqNSVMyCbpeVIhOkuv8WXKfU4bH2",
     "OnboardedDate": "2025-11-09T18:29:44.2668177Z",
     "OnboardingStatus": null
+  },
+  {
+    "CustomerId": "a234bc3c-4fc7-437b-bf42-48e942035008",
+    "CustomerName": "Holla",
+    "TenantId": "f3833244-887f-4182-8c86-28bcdaaf76ff",
+    "ClientId": "4626c51d-2d47-47f2-a033-3408b7a79d73",
+    "ClientSecret": "5zj8Q~8arsG1QqNSVMyCbpeVIhOkuv8WXKfU4bH2",
+    "OnboardedDate": "2025-11-10T22:04:38.7971641Z",
+    "OnboardingStatus": null
   }
 ]

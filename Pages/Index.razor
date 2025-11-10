@@ -124,21 +124,65 @@
             </div>
         </div>
 
-        <!-- Capacity Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-warning">
-                <h5 class="mb-0">💾 Capacity & Storage</h5>
+        <!-- Storage Warnings Section -->
+        @if (_dashboardData.StorageWarnings.Any())
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">⚠️ Storage Warnings (@_dashboardData.StorageWarnings.Count)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Entity</th>
+                                    <th>Threshold (MB)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var warning in _dashboardData.StorageWarnings)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-secondary">@warning.StorageCategory</span></td>
+                                        <td><strong>@warning.StorageEntity</strong></td>
+                                        <td>
+                                            @if (warning.Thresholds?.Any() == true)
+                                            {
+                                                @warning.Thresholds.First().ThresholdInMB
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @(warning.IsActive ? "bg-success" : "bg-secondary")">
+                                                @(warning.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                @if (_dashboardData.CapacityData.Any())
-                {
+        }
+
+        <!-- Capacity Section -->
+        @if (_dashboardData.CapacityData.Any())
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">💾 Capacity & Storage</h5>
+                </div>
+                <div class="card-body">
                     @foreach (var capacity in _dashboardData.CapacityData)
                     {
                         <div class="mb-4">
                             <h6>@capacity.EnvironmentName</h6>
                             
                             <div class="mb-2">
-                                <small>Database: @capacity.DatabaseUsedGB.ToString("F2") GB / @capacity.DatabaseCapacityGB.ToString("F2") GB</small>
+                                <small>Database: @capacity.DatabaseConsumedGb.ToString("F2") GB / @capacity.DatabaseAllocatedGb.ToString("F2") GB</small>
                                 <div class="progress">
                                     <div class="progress-bar @GetProgressBarClass(capacity.DatabasePercentUsed)" 
                                          role="progressbar" 
@@ -149,7 +193,7 @@
                             </div>
                             
                             <div class="mb-2">
-                                <small>File: @capacity.FileUsedGB.ToString("F2") GB / @capacity.FileCapacityGB.ToString("F2") GB</small>
+                                <small>File: @capacity.FileConsumedGb.ToString("F2") GB / @capacity.FileAllocatedGb.ToString("F2") GB</small>
                                 <div class="progress">
                                     <div class="progress-bar @GetProgressBarClass(capacity.FilePercentUsed)" 
                                          role="progressbar" 
@@ -160,7 +204,7 @@
                             </div>
                             
                             <div class="mb-2">
-                                <small>Log: @capacity.LogUsedGB.ToString("F2") GB / @capacity.LogCapacityGB.ToString("F2") GB</small>
+                                <small>Log: @capacity.LogConsumedGb.ToString("F2") GB / @capacity.LogAllocatedGb.ToString("F2") GB</small>
                                 <div class="progress">
                                     <div class="progress-bar @GetProgressBarClass(capacity.LogPercentUsed)" 
                                          role="progressbar" 
@@ -171,57 +215,160 @@
                             </div>
                         </div>
                     }
-                }
-                else
-                {
-                    <p class="text-muted">No capacity data available.</p>
-                }
+                </div>
             </div>
-        </div>
+        }
 
         <!-- Power Pages Scan Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-danger text-white">
-                <h5 class="mb-0">🔒 Power Pages Security Scans</h5>
-            </div>
-            <div class="card-body">
-                @if (_dashboardData.ScanReports.Any())
-                {
+        @if (_dashboardData.ScanReports.Any())
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">🔒 Power Pages Security Scans (@_dashboardData.ScanReports.Count)</h5>
+                </div>
+                <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Website</th>
-                                    <th>Last Scan</th>
-                                    <th>Status</th>
-                                    <th>Critical</th>
-                                    <th>Warnings</th>
-                                    <th>Info</th>
+                                    <th>Environment</th>
+                                    <th>Website ID</th>
+                                    <th>Score</th>
+                                    <th>Findings</th>
+                                    <th>Completed</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var report in _dashboardData.ScanReports)
                                 {
                                     <tr>
-                                        <td><strong>@report.WebsiteName</strong></td>
-                                        <td>@report.ScanDate?.ToShortDateString()</td>
-                                        <td><span class="badge bg-success">@report.Status</span></td>
-                                        <td><span class="badge bg-danger">@report.CriticalIssues</span></td>
-                                        <td><span class="badge bg-warning">@report.WarningIssues</span></td>
-                                        <td><span class="badge bg-info">@report.InfoIssues</span></td>
+                                        <td><strong>@report.EnvironmentId</strong></td>
+                                        <td>@report.WebsiteId</td>
+                                        <td>
+                                            @if (report.Score.HasValue)
+                                            {
+                                                <span class="badge @(report.Score >= 80 ? "bg-success" : report.Score >= 60 ? "bg-warning" : "bg-danger")">
+                                                    @report.Score.Value.ToString("F1")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">N/A</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (report.FindingsCount.HasValue)
+                                            {
+                                                <span class="badge bg-info">@report.FindingsCount</span>
+                                            }
+                                        </td>
+                                        <td>@(report.CompletedOn?.ToShortDateString() ?? "N/A")</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
                     </div>
-                }
-                else
-                {
-                    <p class="text-muted">No Power Pages scan reports available.</p>
-                }
+                </div>
+            </div>
+        }
+    }
+
+		<!-- Advisor Recommendations Section -->
+@if (_dashboardData.AdvisorRecommendations?.Any() == true)
+{
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">🧠 Advisor Recommendations (@_dashboardData.AdvisorRecommendations.Count)</h5>
+
+            <div class="d-flex align-items-center">
+                <input class="form-control form-control-sm me-2"
+                       style="width: 240px"
+                       placeholder="Filter by scenario…"
+                       @bind="_advisorFilter" />
+                <select class="form-select form-select-sm me-2" style="width: 180px" @bind="_advisorSort">
+                    <option value="resources-desc">Resources (high → low)</option>
+                    <option value="resources-asc">Resources (low → high)</option>
+                    <option value="recent">Most recently refreshed</option>
+                    <option value="stale">Most stale first</option>
+                </select>
+                <button class="btn btn-sm btn-outline-light" @onclick="ClearAdvisorFilters">Clear</button>
             </div>
         </div>
-    }
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%">Scenario</th>
+                            <th class="text-end" style="width: 12%">Resources</th>
+                            <th style="width: 20%">Last Refreshed</th>
+                            <th style="width: 20%">Next Refresh</th>
+                            <th style="width: 8%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rec in GetFilteredSortedAdvisorRecs())
+                        {
+                            var last = rec.Details?.LastRefreshedTimestamp;
+                            var next = rec.Details?.ExpectedNextRefreshTimestamp;
+                            var count = rec.Details?.ResourceCount ?? 0;
+                            <tr>
+                                <td>
+                                    <strong>@rec.Scenario</strong><br />
+                                    <small class="text-muted">@GetScenarioHint(rec.Scenario)</small>
+                                </td>
+                                <td class="text-end">
+                                    <span class="badge @(count >= 50 ? "bg-danger" : count >= 10 ? "bg-warning" : "bg-success")">
+                                        @count
+                                    </span>
+                                </td>
+                                <td>
+                                    @FormatDate(last)
+                                    @if (IsStale(last))
+                                    {
+                                        <span class="badge bg-warning text-dark ms-2">Stale</span>
+                                    }
+                                </td>
+                                <td>@FormatDate(next)</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            title="View recommendation details"
+                                            @onclick="() => ToggleAdvisorDetails(rec.Scenario)">
+                                        @(IsExpanded(rec.Scenario) ? "Hide" : "Details")
+                                    </button>
+                                </td>
+                            </tr>
+                            @if (IsExpanded(rec.Scenario))
+                            {
+                                <tr class="table-light">
+                                    <td colspan="5">
+                                        <div>
+                                            <div class="mb-1"><strong>Scenario:</strong> @rec.Scenario</div>
+                                            <div class="mb-1">
+                                                <strong>Summary:</strong> @GetScenarioSummary(rec.Scenario)
+                                            </div>
+                                            <div class="text-muted">
+                                                <em>Tip:</em> Use this to prioritise clean-up and prevention tasks
+                                                (e.g. disable unused apps, reduce noisy flows, fix capacity hotspots).
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (!GetFilteredSortedAdvisorRecs().Any())
+            {
+                <p class="text-muted mb-0">No recommendations match your current filter.</p>
+            }
+        </div>
+    </div>
+}
+
 </div>
 
 <!-- Add/Edit Customer Modal -->
@@ -272,6 +419,77 @@
     private bool _showModal = false;
     private bool _isEditMode = false;
     private CustomerConfig _editingCustomer = new();
+
+// --- Advisor UI state ---
+private string _advisorFilter = string.Empty;
+private string _advisorSort = "resources-desc";
+private HashSet<string> _advisorExpanded = new();
+
+private void ClearAdvisorFilters()
+{
+    _advisorFilter = string.Empty;
+    _advisorSort = "resources-desc";
+    _advisorExpanded.Clear();
+}
+
+private IEnumerable<AdvisorRecommendation> GetFilteredSortedAdvisorRecs()
+{
+    var q = _dashboardData.AdvisorRecommendations.AsEnumerable();
+
+    if (!string.IsNullOrWhiteSpace(_advisorFilter))
+    {
+        var f = _advisorFilter.Trim();
+        q = q.Where(r => (r.Scenario ?? "").Contains(f, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Sort
+    q = _advisorSort switch
+    {
+        "resources-asc"  => q.OrderBy(r => r.Details?.ResourceCount ?? 0),
+        "recent"         => q.OrderByDescending(r => r.Details?.LastRefreshedTimestamp ?? DateTime.MinValue),
+        "stale"          => q.OrderBy(r => r.Details?.LastRefreshedTimestamp ?? DateTime.MinValue),
+        _                 => q.OrderByDescending(r => r.Details?.ResourceCount ?? 0), // resources-desc
+    };
+
+    return q;
+}
+
+private string FormatDate(DateTime? dt)
+    => dt.HasValue ? dt.Value.ToString("yyyy-MM-dd HH:mm") : "—";
+
+private bool IsStale(DateTime? lastRefreshedUtc)
+{
+    if (!lastRefreshedUtc.HasValue) return true;
+    // Consider stale if older than 7 days
+    return (DateTime.UtcNow - lastRefreshedUtc.Value).TotalDays > 7;
+}
+
+private void ToggleAdvisorDetails(string scenario)
+{
+    if (string.IsNullOrWhiteSpace(scenario)) return;
+    if (!_advisorExpanded.Add(scenario))
+        _advisorExpanded.Remove(scenario);
+}
+
+private bool IsExpanded(string scenario) => _advisorExpanded.Contains(scenario);
+
+// Optional: tiny hints/summaries to make rows clearer (extend as you learn scenarios)
+private string GetScenarioHint(string scenario) => scenario?.ToLower() switch
+{
+    var s when s.Contains("unused") => "Potentially unused or idle resources",
+    var s when s.Contains("capacity") => "Capacity / storage optimisation",
+    var s when s.Contains("security") => "Security posture and configuration",
+    _ => "Operational recommendation"
+};
+
+private string GetScenarioSummary(string scenario) => scenario?.ToLower() switch
+{
+    var s when s.Contains("unused")   => "Review and retire unused apps/flows to reduce noise and cost.",
+    var s when s.Contains("capacity") => "Investigate high consumption; archive or scale where appropriate.",
+    var s when s.Contains("security") => "Tighten permissions, secrets, and environment policies.",
+    _ => "Investigate affected resources and action the suggested fix."
+};
+
 
     protected override void OnInitialized()
     {
