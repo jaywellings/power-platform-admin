@@ -1,0 +1,128 @@
+@page "/consent-callback"
+@using PowerPlatformDashboard.Models
+@using PowerPlatformDashboard.Services
+@inject NavigationManager Navigation
+@inject ICustomerConfigService CustomerConfigService
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<PageTitle>Consent Complete</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            @if (_isProcessing)
+            {
+                <div class="card">
+                    <div class="card-body text-center p-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <h5>Processing consent...</h5>
+                    </div>
+                </div>
+            }
+            else if (_consentGranted)
+            {
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">✅ Consent Granted!</h4>
+                    </div>
+                    <div class="card-body">
+                        @if (!_customerSaved)
+                        {
+                            <p>Tenant ID: <strong>@_tenantId</strong></p>
+                            <p>Please provide a name for this customer:</p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Customer Name</label>
+                                <input type="text" class="form-control" @bind="_customerName" placeholder="e.g., Contoso Ltd" />
+                            </div>
+                            
+                            <button class="btn btn-primary" @onclick="SaveCustomer" disabled="@string.IsNullOrWhiteSpace(_customerName)">
+                                Save Customer
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success">
+                                <strong>Success!</strong> Customer "@_customerName" has been added to your dashboard.
+                            </div>
+                            
+                            <a href="/" class="btn btn-primary">Go to Dashboard</a>
+                        }
+                    </div>
+                </div>
+            }
+            else if (_error)
+            {
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0">❌ Error</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-danger">
+                            @_errorMessage
+                        </div>
+                        
+                        <a href="/onboarding" class="btn btn-secondary">Try Again</a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _isProcessing = true;
+    private bool _consentGranted = false;
+    private bool _customerSaved = false;
+    private bool _error = false;
+    private string _errorMessage = "";
+    private string _tenantId = "";
+    private string _customerName = "";
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        var adminConsent = query["admin_consent"];
+        _tenantId = query["tenant"];
+        var errorParam = query["error"];
+        var errorDescription = query["error_description"];
+
+        _isProcessing = false;
+
+        if (!string.IsNullOrEmpty(errorParam))
+        {
+            _error = true;
+            _errorMessage = $"Consent was not granted. {errorDescription}";
+        }
+        else if (adminConsent == "True" && !string.IsNullOrEmpty(_tenantId))
+        {
+            _consentGranted = true;
+        }
+        else
+        {
+            _error = true;
+            _errorMessage = "Invalid callback. Please try the onboarding process again.";
+        }
+    }
+
+    private void SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(_customerName))
+            return;
+
+        var customer = new CustomerConfig
+        {
+            CustomerName = _customerName,
+            TenantId = _tenantId,
+            ClientId = Configuration["AzureAd:ClientId"],
+            ClientSecret = Configuration["AzureAd:ClientSecret"] ?? ""
+        };
+
+        CustomerConfigService.AddCustomer(customer);
+        _customerSaved = true;
+    }
+}

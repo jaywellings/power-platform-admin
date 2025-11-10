@@ -1,0 +1,97 @@
+@page "/onboarding"
+@inject NavigationManager Navigation
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<PageTitle>Customer Onboarding</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">🚀 Customer Self-Service Onboarding</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>For Support Engineers:</strong> Share the onboarding link below with your customer's admin.
+                    </div>
+
+                    <h5 class="mt-4">How It Works:</h5>
+                    <ol>
+                        <li>Customer admin clicks the "Start Onboarding" button below</li>
+                        <li>They sign in with their Microsoft work account</li>
+                        <li>They grant consent to access Power Platform data</li>
+                        <li>Customer is automatically added to the dashboard</li>
+                    </ol>
+
+                    <div class="mt-4 p-4 bg-light border rounded">
+                        <h5>Onboarding Link:</h5>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" readonly value="@GetOnboardingUrl()" id="onboardingUrl" />
+                            <button class="btn btn-outline-secondary" @onclick="CopyToClipboard">
+                                📋 Copy
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <a href="@GetConsentUrl()" class="btn btn-success btn-lg">
+                                ▶️ Start Onboarding (Customer Admin)
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6>Configuration Status:</h6>
+                        <ul>
+                            <li>App Client ID: <code>@GetClientId()</code></li>
+                            <li>Redirect URI: <code>@GetRedirectUri()</code></li>
+                        </ul>
+                        
+                        @if (string.IsNullOrEmpty(GetClientId()) || GetClientId() == "your-app-client-id")
+                        {
+                            <div class="alert alert-warning">
+                                ⚠️ Please configure your App Registration Client ID in appsettings.json
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string GetClientId()
+    {
+        return Configuration["AzureAd:ClientId"] ?? "your-app-client-id";
+    }
+
+    private string GetRedirectUri()
+    {
+        var baseUrl = Navigation.BaseUri.TrimEnd('/');
+        return $"{baseUrl}/consent-callback";
+    }
+
+    private string GetConsentUrl()
+    {
+        var clientId = GetClientId();
+        var redirectUri = Uri.EscapeDataString(GetRedirectUri());
+        
+        return $"https://login.microsoftonline.com/organizations/adminconsent?client_id={clientId}&redirect_uri={redirectUri}";
+    }
+
+    private string GetOnboardingUrl()
+    {
+        return Navigation.BaseUri.TrimEnd('/') + "/onboarding";
+    }
+
+    private async Task CopyToClipboard()
+    {
+        // Note: In production, use JavaScript interop for clipboard
+        // For now, users can manually copy
+    }
+}

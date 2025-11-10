@@ -1,0 +1,365 @@
+@page "/"
+@using PowerPlatformDashboard.Models
+@using PowerPlatformDashboard.Services
+@inject ICustomerConfigService CustomerConfigService
+@inject IPowerPlatformApiService PowerPlatformApiService
+
+<PageTitle>Power Platform Dashboard</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>🚀 Power Platform Support Dashboard</h1>
+        <div>
+            <a href="/onboarding" class="btn btn-success me-2">
+                🔗 Customer Onboarding
+            </a>
+            <button class="btn btn-primary" @onclick="ShowAddCustomerModal">
+                ➕ Add Customer Manually
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Select Customer</h5>
+                    <select class="form-select" @onchange="OnCustomerChanged">
+                        <option value="">-- Choose a customer --</option>
+                        @foreach (var customer in _customers)
+                        {
+                            <option value="@customer.CustomerId">@customer.CustomerName</option>
+                        }
+                    </select>
+                    
+                    @if (_selectedCustomer != null)
+                    {
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-warning me-2" @onclick="ShowEditCustomerModal">
+                                ✏️ Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger" @onclick="DeleteCustomer">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        
+        @if (_selectedCustomer != null)
+        {
+            <div class="col-md-8">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="mb-0">
+                            <strong>@_selectedCustomer.CustomerName</strong>
+                            <small class="text-muted ms-2">Tenant: @_selectedCustomer.TenantId</small>
+                        </h6>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (_dashboardData.IsLoading)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading dashboard data...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_dashboardData.ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            <strong>Error:</strong> @_dashboardData.ErrorMessage
+        </div>
+    }
+    else if (_selectedCustomer != null)
+    {
+        <!-- Environments Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">🌍 Environments (@_dashboardData.Environments.Count)</h5>
+            </div>
+            <div class="card-body">
+                @if (_dashboardData.Environments.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Region</th>
+                                    <th>State</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var env in _dashboardData.Environments)
+                                {
+                                    <tr>
+                                        <td><strong>@env.DisplayName</strong></td>
+                                        <td><span class="badge bg-info">@env.Type</span></td>
+                                        <td>@env.Region</td>
+                                        <td>
+                                            <span class="badge @(env.State == "Succeeded" ? "bg-success" : "bg-warning")">
+                                                @env.State
+                                            </span>
+                                        </td>
+                                        <td>@env.CreatedTime.ToShortDateString()</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No environments found.</p>
+                }
+            </div>
+        </div>
+
+        <!-- Capacity Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">💾 Capacity & Storage</h5>
+            </div>
+            <div class="card-body">
+                @if (_dashboardData.CapacityData.Any())
+                {
+                    @foreach (var capacity in _dashboardData.CapacityData)
+                    {
+                        <div class="mb-4">
+                            <h6>@capacity.EnvironmentName</h6>
+                            
+                            <div class="mb-2">
+                                <small>Database: @capacity.DatabaseUsedGB.ToString("F2") GB / @capacity.DatabaseCapacityGB.ToString("F2") GB</small>
+                                <div class="progress">
+                                    <div class="progress-bar @GetProgressBarClass(capacity.DatabasePercentUsed)" 
+                                         role="progressbar" 
+                                         style="width: @capacity.DatabasePercentUsed%">
+                                        @capacity.DatabasePercentUsed%
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <small>File: @capacity.FileUsedGB.ToString("F2") GB / @capacity.FileCapacityGB.ToString("F2") GB</small>
+                                <div class="progress">
+                                    <div class="progress-bar @GetProgressBarClass(capacity.FilePercentUsed)" 
+                                         role="progressbar" 
+                                         style="width: @capacity.FilePercentUsed%">
+                                        @capacity.FilePercentUsed%
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <small>Log: @capacity.LogUsedGB.ToString("F2") GB / @capacity.LogCapacityGB.ToString("F2") GB</small>
+                                <div class="progress">
+                                    <div class="progress-bar @GetProgressBarClass(capacity.LogPercentUsed)" 
+                                         role="progressbar" 
+                                         style="width: @capacity.LogPercentUsed%">
+                                        @capacity.LogPercentUsed%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">No capacity data available.</p>
+                }
+            </div>
+        </div>
+
+        <!-- Power Pages Scan Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">🔒 Power Pages Security Scans</h5>
+            </div>
+            <div class="card-body">
+                @if (_dashboardData.ScanReports.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Website</th>
+                                    <th>Last Scan</th>
+                                    <th>Status</th>
+                                    <th>Critical</th>
+                                    <th>Warnings</th>
+                                    <th>Info</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var report in _dashboardData.ScanReports)
+                                {
+                                    <tr>
+                                        <td><strong>@report.WebsiteName</strong></td>
+                                        <td>@report.ScanDate?.ToShortDateString()</td>
+                                        <td><span class="badge bg-success">@report.Status</span></td>
+                                        <td><span class="badge bg-danger">@report.CriticalIssues</span></td>
+                                        <td><span class="badge bg-warning">@report.WarningIssues</span></td>
+                                        <td><span class="badge bg-info">@report.InfoIssues</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No Power Pages scan reports available.</p>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Add/Edit Customer Modal -->
+@if (_showModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_isEditMode ? "Edit Customer" : "Add Customer")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Customer Name</label>
+                        <input type="text" class="form-control" @bind="_editingCustomer.CustomerName" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tenant ID</label>
+                        <input type="text" class="form-control" @bind="_editingCustomer.TenantId" />
+                        <small class="text-muted">From Azure AD → Overview</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Client ID</label>
+                        <input type="text" class="form-control" @bind="_editingCustomer.ClientId" />
+                        <small class="text-muted">From App Registration → Overview</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Client Secret</label>
+                        <input type="password" class="form-control" @bind="_editingCustomer.ClientSecret" />
+                        <small class="text-muted">From App Registration → Certificates & secrets</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveCustomer">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CustomerConfig> _customers = new();
+    private CustomerConfig _selectedCustomer;
+    private DashboardData _dashboardData = new();
+    
+    private bool _showModal = false;
+    private bool _isEditMode = false;
+    private CustomerConfig _editingCustomer = new();
+
+    protected override void OnInitialized()
+    {
+        RefreshCustomers();
+    }
+
+    private void RefreshCustomers()
+    {
+        _customers = CustomerConfigService.GetAllCustomers();
+    }
+
+    private async Task OnCustomerChanged(ChangeEventArgs e)
+    {
+        var customerId = e.Value?.ToString();
+        
+        if (string.IsNullOrEmpty(customerId))
+        {
+            _selectedCustomer = null;
+            _dashboardData = new DashboardData();
+            return;
+        }
+
+        _selectedCustomer = CustomerConfigService.GetCustomer(customerId);
+        _dashboardData = new DashboardData { IsLoading = true };
+        
+        StateHasChanged();
+        
+        _dashboardData = await PowerPlatformApiService.GetDashboardDataAsync(_selectedCustomer);
+        
+        StateHasChanged();
+    }
+
+    private void ShowAddCustomerModal()
+    {
+        _isEditMode = false;
+        _editingCustomer = new CustomerConfig();
+        _showModal = true;
+    }
+
+    private void ShowEditCustomerModal()
+    {
+        _isEditMode = true;
+        _editingCustomer = new CustomerConfig
+        {
+            CustomerId = _selectedCustomer.CustomerId,
+            CustomerName = _selectedCustomer.CustomerName,
+            TenantId = _selectedCustomer.TenantId,
+            ClientId = _selectedCustomer.ClientId,
+            ClientSecret = _selectedCustomer.ClientSecret
+        };
+        _showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+    }
+
+    private void SaveCustomer()
+    {
+        if (_isEditMode)
+        {
+            CustomerConfigService.UpdateCustomer(_editingCustomer);
+        }
+        else
+        {
+            CustomerConfigService.AddCustomer(_editingCustomer);
+        }
+        
+        RefreshCustomers();
+        CloseModal();
+    }
+
+    private void DeleteCustomer()
+    {
+        if (_selectedCustomer != null)
+        {
+            CustomerConfigService.DeleteCustomer(_selectedCustomer.CustomerId);
+            _selectedCustomer = null;
+            _dashboardData = new DashboardData();
+            RefreshCustomers();
+        }
+    }
+
+    private string GetProgressBarClass(int percent)
+    {
+        if (percent >= 90) return "bg-danger";
+        if (percent >= 75) return "bg-warning";
+        return "bg-success";
+    }
+}
