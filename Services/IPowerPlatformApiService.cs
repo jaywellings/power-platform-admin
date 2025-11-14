@@ -183,7 +183,7 @@ private async Task<List<AdvisorRecommendation>> GetAdvisorRecommendationsAsync(H
 {
     // Docs: GET https://api.powerplatform.com/analytics/advisorRecommendations?api-version=2022-03-01-preview
     // Supports paging via nextLink
-    var baseUrl = "https://api.powerplatform.com/licensing/billingPolicies?api-version=2022-03-01-preview";
+    var baseUrl = "https://api.powerplatform.com/analytics/advisorRecommendations?api-version=2024-10-01";
     var results = new List<AdvisorRecommendation>();
     var url = baseUrl;
 
